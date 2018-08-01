@@ -14,6 +14,9 @@ import android.widget.TextView;
 import android.net.*;
 import android.net.wifi.WifiManager;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -66,7 +69,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         NetInfo getnet = new NetInfo(cm, wifii);
 
+        //Get MAC Addresses
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File("/proc/net/arp")));
+            String total = "";
+            String line;
+            while((line = br.readLine()) != null) {
+                if (!line.contains("00:00:00:00:00:00") && !line.contains("HW address")) {
+                    //total += line + "\n";
+                    String[] split = line.split("\\s+");
+                    //Log.d(TAG, "LineContains: " + line);
+                    Log.d(TAG, "IPAddress: " + split[0]+" MACAddress: "+split[3]);
+                } else {
+                }
 
+            }
+            //System.out.println(total);
+            //Log.d(TAG, "Total: " + total);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         /*try {
             if (InetAddress.getByName("10.0.120.1").isReachable(5)) {
                 info.setText("True");
