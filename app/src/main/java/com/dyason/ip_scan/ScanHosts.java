@@ -63,15 +63,6 @@ public class ScanHosts extends AsyncTask<String, Integer, String> {
             Log.d(TAG, "checkHosts() :: IOException e : " + e);
             e.printStackTrace();
         }
-        // Dummy code
-        /*for (int i = 0; i <= 100; i += 5) {
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            publishProgress(i);
-        }*/
         return "All Done!";
 
     }
