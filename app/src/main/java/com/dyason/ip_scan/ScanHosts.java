@@ -1,60 +1,106 @@
 package com.dyason.ip_scan;
 
-import android.net.LinkProperties;
 import android.os.AsyncTask;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.DhcpInfo;
-import android.net.NetworkInfo;
-import android.net.wifi.WifiManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.net.InetAddress;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.util.Enumeration;
-import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class ScanHosts extends AsyncTask<String, Integer, String> {
 
-    //var
 
-    private String subnet = "10.0.120";
-    public static final String TAG = "YOUR-TAG-NAME";
-    private int hostsfound;
-    private int timeout;
+    ArrayList<Device> devices;
+    ArrayList<String> devices_ip;
+    int hostcount;
+    final String TAG = "SCANHOSTS";
+    ProgressBar progressBar;
+    TextView textView;
+    String myip;
+    String mymac;
 
     //con
     public ScanHosts() {
-        hostsfound = 0;
-        timeout = 50;
+        super();
+
+    }
+
+    public ScanHosts(ProgressBar progressBar, TextView textView, String myip, String mymac) {
+        super();
+        this.progressBar = progressBar;
+        this.textView = textView;
+        this.myip=myip;
+        this.mymac=mymac;
+        this.devices=devices;
+    }
+
+    public ScanHosts(ProgressBar progressBar, TextView textView, String myip, String mymac, String ssid) {
+        super();
+        this.progressBar = progressBar;
+        this.textView = textView;
+        this.myip=myip;
+        this.mymac = mymac;
+        this.devices=devices;
+
+        //Load devices already labelled
+    }
+
+    //methods
+    @Override
+    protected void onPreExecute() {
+        super.onPreExecute();
+        displayProgressBar();
     }
 
     @Override
     protected String doInBackground(String... params) {
+
+        int timeout;
         String url = params[0];
+        ArrayList<String> hosts;
+        timeout = 200;
+        int hostsfound = 0;
 
         try {
 
+            devices_ip = new ArrayList<String>();
+            IPconv network = new IPconv(url);
+            hosts = network.getHosts();
             //info.setText("Scanning: Starting");
-            for (int i = 1; i < 255; i++) {
-                String host = subnet + "." + i;
-                if (InetAddress.getByName(host).isReachable(timeout)) {
+            //int hostcount = hosts.size();
+            int hostcount = 10;
+            //Just do 10 for now then change back to host.size();
+            for (int i = 0; i < hostcount; i++) {
+                if (isCancelled())
+                    break;
+                if (InetAddress.getByName(hosts.get(i)).isReachable(timeout)) {
                     hostsfound++;
-                    //info.setText("Scanning: " + hostsfound + " devices found");
-                    Log.d(TAG, "checkHosts() :: " + host + " is reachable");
+                    devices_ip.add(hosts.get(i));
+                    publishProgress(i,hostsfound,hostcount);
+                    //Log.d(TAG, "checkHosts() :: " + hosts.get(i) + " is reachable");
                 } else {
-                    //info.setText("Scanning: Something not right " + i);
-                    Log.d(TAG, "checkHosts() :: " + host + " is unreachable");
+                    publishProgress(i,hostsfound,hostcount);
+                    //Log.d(TAG, "checkHosts() :: " + hosts.get(i) + " is unreachable");
                 }
-                //info.setText("Finished: Devices found "+hostsfound);
+            }
+            // Get them and put them in a table with MAC addresses now
+            ArpLoad lookup = new ArpLoad();
+            for (int i=0; i < devices_ip.size();i++) {
+                //Won't have it's own macaddress so use info we have
+                //Log.d(TAG, "MyIPAddress: " + devices_ip.get(i)+" Mine: "+myip+"MyMac"+mymac);
+                if (devices_ip.get(i).matches(myip)) {
+                    devices.add(new Device(devices_ip.get(i),mymac.toLowerCase()));
+                    Log.d(TAG, "IPAddress: " + devices_ip.get(i)+" MACAddress: "+mymac.toLowerCase());
+                }
+                if (lookup.getMacAddress(devices_ip.get(i))!= null && !devices_ip.get(i).matches(myip)) {
+                    devices.add(new Device(devices_ip.get(i),mymac.toLowerCase()));
+                    Log.d(TAG, "IPAddress: " + devices_ip.get(i)+" MACAddress: "+lookup.getMacAddress(devices_ip.get(i)));
+
+                }
             }
         } catch (UnknownHostException e) {
             Log.d(TAG, "checkHosts() :: UnknownHostException e : " + e);
@@ -67,60 +113,38 @@ public class ScanHosts extends AsyncTask<String, Integer, String> {
 
     }
 
-    public void scan(TextView info) {
-        try {
-
-            info.setText("Scanning: Starting");
-            for (int i = 1; i < 255; i++) {
-                String host = subnet + "." + i;
-                if (InetAddress.getByName(host).isReachable(timeout)) {
-                    hostsfound++;
-                    info.setText("Scanning: " + hostsfound + " devices found");
-                    Log.d(TAG, "checkHosts() :: " + host + " is reachable");
-                } else {
-                    info.setText("Scanning: Something not right " + i);
-                    Log.d(TAG, "checkHosts() :: " + host + " is unreachable");
-                }
-                info.setText("Finished: Devices found " + hostsfound);
-            }
-        } catch (UnknownHostException e) {
-            Log.d(TAG, "checkHosts() :: UnknownHostException e : " + e);
-            e.printStackTrace();
-        } catch (IOException e) {
-            Log.d(TAG, "checkHosts() :: IOException e : " + e);
-            e.printStackTrace();
-        }
-    }
-
     @Override
     protected void onProgressUpdate(Integer... values) {
         super.onProgressUpdate(values);
-        //updateProgressBar(values[0]);
+        double hostpercent = 100 / (double) values[2];
+        double progress = hostpercent * (double) values[0];
+        //Log.d(TAG, "Devices found: "+values[0]);
+        //Log.d(TAG, "Devices found: "+progress);
+        updateProgressBar((int) progress);
+        textView.setText("Devices found: "+values[1]);
     }
 
     @Override
     protected void onPostExecute(String result) {
         super.onPostExecute(result);
-        //dismissProgressBar();
+        dismissProgressBar();
     }
 
-    /*protected void displayProgressBar(){
-        ProgressBar bar=(ProgressBar)findViewById(R.id.progressBar2);
-        bar.setVisibility(View.VISIBLE); //View.INVISIBLE, or View.GONE to hide it.
+    protected void displayProgressBar(){
+        //ProgressBar bar=(ProgressBar)findViewById(R.id.scanprogressBar1);
+        progressBar.setVisibility(View.VISIBLE); //View.INVISIBLE, or View.GONE to hide it.
     }
 
     protected void updateProgressBar(Integer... values){
-        ProgressBar bar=(ProgressBar)findViewById(R.id.progressBar2);
-        bar.setProgress(values[0]);
+        //ProgressBar bar=(ProgressBar)findViewById(R.id.scanprogressBar1);
+        progressBar.setProgress(values[0]);
     }
 
     protected void dismissProgressBar(){
-        ProgressBar bar=(ProgressBar)findViewById(R.id.progressBar2);
-        bar.setVisibility(View.VISIBLE); //View.INVISIBLE, or View.GONE to hide it.
+        //ProgressBar bar=(ProgressBar)findViewById(R.id.scanprogressBar1);
+        progressBar.setVisibility(View.INVISIBLE); //View.INVISIBLE, or View.GONE to hide it.
     }
-    public int getHostsfound() {
-        return hostsfound;*/
 }
-//meth
+
 
 

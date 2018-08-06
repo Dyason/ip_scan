@@ -4,9 +4,6 @@ import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
 import android.net.wifi.WifiInfo;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
 import android.net.NetworkInfo;
@@ -16,6 +13,7 @@ import android.util.Log;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.net.SocketException;
 import java.util.List;
@@ -28,16 +26,17 @@ public class NetInfo {
     private String   s_ipAddress;
     private String   s_netmask;
     private String   s_ssid;
+    private String   s_macaddress;
 
     public DhcpInfo d;
     private WifiManager wifii;
     private ConnectivityManager cm;
     public static final String TAG = "NETINFO";
 
-    private String  export;
-
         //con
     public NetInfo(ConnectivityManager cm,WifiManager wifii)  {
+        this.cm = cm;
+        this.wifii = wifii;
 
         /*try {
             for (Enumeration<NetworkInterface> en =
@@ -73,8 +72,8 @@ public class NetInfo {
         d=wifii.getDhcpInfo();
         //s_dns1="DNS 1: "+intToIp(d.dns1);
         //s_dns2="DNS 2: "+intToIp(d.dns2);
-        s_gateway="Default Gateway: "+intToIp(d.gateway);
-        s_ipAddress=intToIp(d.ipAddress);
+        s_gateway="Default Gateway: "+intToIp(d.gateway).trim();
+        s_ipAddress=intToIp(d.ipAddress).trim();
         //s_leaseDuration="Lease Time: "+String.valueOf(d.leaseDuration);
         //s_netmask="Subnet Mask: "+String.valueOf(d.netmask);
         //s_serverAddress="Server IP: "+intToIp(d.serverAddress);
@@ -87,19 +86,8 @@ public class NetInfo {
         }
         //s_ssid="SSID: "+cm.getActiveNetworkInfo().getExtraInfo();
         WifiInfo wifiInfo = wifii.getConnectionInfo();
+        s_macaddress=wifiInfo.getMacAddress();
         s_ssid=wifiInfo.getSSID();
-        /*try {
-            InetAddress inetAddress = InetAddress.getByAddress(d.ipAddress);
-            NetworkInterface networkInterface = NetworkInterface.getByInetAddress(inetAddress);
-            for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-                //short netPrefix = address.getNetworkPrefixLength();
-                //Log.d(TAG, address.toString());
-                s_netmask=address.toString();
-            }
-        } catch (SocketException e) {
-            Log.e(TAG, e.getMessage());
-        }*/
-
     }
 
 
@@ -109,7 +97,6 @@ public class NetInfo {
 
     public String getInfo() {
         //export="Network Info\\n\"+s_dns1+\"\\n\"+s_dns2+\"\\n\"+s_gateway+\"\\n\"+s_ipAddress+\"\\n\"+s_leaseDuration+\"\\n\"+s_netmask+\"\\n\"+s_serverAddress";
-        export=s_ssid;
         return s_netmask;
     }
 
@@ -135,7 +122,7 @@ public class NetInfo {
     public String findNetwork() {
         String netaddr;
         netaddr = "";
-        NetInfo getnet = new NetInfo(cm, wifii);
+        //NetInfo getnet = new NetInfo(cm, wifii);
         Network[] networks = cm.getAllNetworks();
         for (Network network : networks) {
             LinkProperties linkProperties = cm.getLinkProperties(network);
@@ -143,18 +130,54 @@ public class NetInfo {
             for (LinkAddress addr : addresses) {
                 //Log.d(TAG, "LP: "+linkProperties.getLinkAddresses().toString());
                 //Log.d(TAG, "LPA: "+addr.getAddress().toString());
-                Log.d(TAG, "LPB: " + getnet.getIPAddress());
-                if (addr.getAddress().toString().contains(getnet.getIPAddress())) {
+                //Log.d(TAG, "LPB: " + getIPAddress());
+                if (addr.getAddress().toString().contains(getIPAddress())) {
                     //Log.d(TAG, network.toString());
                     netaddr = addr.toString();
-                    Log.d(TAG, "LPM: " + addr.toString());
+                    Log.d(TAG, "LPM: " + netaddr);
+
+                    //String example = netaddr;
+                    //System.out.println(example.substring(example.lastIndexOf("/") + 1));
                 }
             }
         }
         s_netmask = netaddr.substring(netaddr.lastIndexOf("/") + 1);
-        return s_netmask;
+        return netaddr;
     }
 
+    public String findMACAddress() {
+        String macAddress;
+        macAddress = "";
+        try {
+            List<NetworkInterface> all = Collections.list(NetworkInterface.getNetworkInterfaces());
+            for (NetworkInterface nif : all) {
+                if (!nif.getName().equalsIgnoreCase("wlan0")) continue;
+
+                byte[] macBytes = nif.getHardwareAddress();
+                if (macBytes == null) {
+                    macAddress = "";
+                }
+
+                StringBuilder res1 = new StringBuilder();
+                for (byte b : macBytes) {
+                    //res1.append(Integer.toHexString(b & 0xFF) + ":");
+                    res1.append(String.format("%02X:",b));
+                }
+
+                if (res1.length() > 0) {
+                    res1.deleteCharAt(res1.length() - 1);
+                }
+                macAddress = res1.toString();
+            }
+        } catch (Exception ex) {
+            //Log.d("DEBUG", ex.getMessage());
+        }
+        return macAddress;
+    }
+
+    public String get_macaddress() {
+        return s_macaddress;
+    }
         public String toString() {
             return s_gateway + s_ipAddress + s_netmask + s_ssid;
         }

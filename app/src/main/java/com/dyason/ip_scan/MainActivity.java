@@ -136,8 +136,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
 
             case R.id.btn2:
-                Intent i = new Intent(this, AsyncTaskTestActivity.class);
-                startActivity(i);
+                //Intent i = new Intent(this, AsyncTaskTestActivity.class);
+                //startActivity(i);
 
             default:
                 break;
